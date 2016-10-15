@@ -36,8 +36,8 @@ line <- ((setting / comment / ws+) (crlf / eof)) / crlf %{
 
 %% A setting is a key and a value, joined by =, with surrounding
 %% whitespace ignored.
-setting <- ws* key ws* "=" ws* value %{
-    [ _, Key, _, _Eq, _, Value] = Node,
+setting <- ws* key ws* "=" ws* value ws* %{
+    [ _, Key, _, _Eq, _, Value, _] = Node,
     {Key, Value}
 %};
 
