@@ -63,7 +63,7 @@ comment <- ws* "#" (!crlf .)* `comment`;
 
 %% A word is one or more of letters, numbers and dashes or
 %% underscores.
-word <- ("\\." / [A-Za-z0-9_-])+ %{
+word <- ("\\." / [@/:] / [A-Za-z0-9_-])+ %{
     unescape_dots(unicode:characters_to_list(Node))
 %};
 
