@@ -8,7 +8,9 @@
 -endif.
 
 %% @doc turns a proplist into a list of strings suitable for vm.args files
--spec stringify([{any(), string()}]) -> [string()].
+-spec stringify(undefined | [{any(), string()}]) -> [string()].
+stringify(undefined) ->
+    [];
 stringify(VMArgsProplist) ->
     [ stringify_line(K, V) || {K, V} <- VMArgsProplist ].
 
