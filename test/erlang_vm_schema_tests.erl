@@ -33,7 +33,7 @@ basic_schema_test() ->
             cuttlefish_unit:assert_config(Config, "vm_args.+Q", 262144),
             cuttlefish_unit:assert_config(Config, "vm_args.+e", 256000);
         _ ->
-            cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_MAX_PORTS", 65536),
+            cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_MAX_PORTS", 262144),
             cuttlefish_unit:assert_config(Config, "vm_args.-env ERL_MAX_ETS_TABLES", 256000)
     end,
     ok.
@@ -171,3 +171,32 @@ context() ->
         {node, "node@host"},
         {crash_dump, "dump"}
     ].
+
+inet_dist_use_interface_test() ->
+    InputConfig = "erlang.distribution.interface",
+    GeneratedConfig = "kernel.inet_dist_use_interface",
+    InputConfigPoint = string:tokens(InputConfig, "."),
+
+    Pass =[
+        {"127.0.0.1",{127,0,0,1}},
+        {"0.0.0.0",{0,0,0,0}},
+        {"fe80:1200::1",{65152,4608,0,0,0,0,0,1}}
+    ],
+    Fail = [
+        "127.0.0.1:8080",
+        "127.1",
+        "fe80:1200::g",
+        "Not an IP"
+    ],
+
+    lists:foreach(fun({Input, Expected}) ->
+                Config = cuttlefish_unit:generate_templated_config(
+                    ["../priv/erlang_vm.schema"], [{InputConfigPoint, Input}], context()),
+                cuttlefish_unit:assert_config(Config, GeneratedConfig, Expected)
+        end, Pass),
+    lists:foreach(fun(Input) ->
+                Config = cuttlefish_unit:generate_templated_config(
+                    ["../priv/erlang_vm.schema"], [{InputConfigPoint, Input}], context()),
+                cuttlefish_unit:assert_error_message(Config,
+                    InputConfig ++ " invalid, must be a valid IPv4 or IPv6 address")
+        end, Fail).
