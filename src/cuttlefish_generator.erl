@@ -436,7 +436,7 @@ value_sub(Conf) ->
     lists:foldr(
         fun({Var, Val}, {Acc, ErrorAcc}) ->
             case value_sub(Var, Val, Conf) of
-                {error, _E} = Error -> {Acc, [Error|ErrorAcc]};
+                {error1, E} -> {Acc, [{error, E}|ErrorAcc]};
                 {NewVal, _NewConf} -> {[{Var, NewVal}|Acc], ErrorAcc}
             end
         end,
@@ -459,14 +459,14 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
      %% Check if history contains duplicates. if so error
      case erlang:length(History) == sets:size(sets:from_list(History)) of
          false ->
-             {error, {circular_rhs, History}};
+             {error1, {circular_rhs, History}};
          _ ->
              case head_sub(Value) of
                  none -> {Value, Conf};
                  {sub, NextVar, {SubFront, SubBack}} ->
                     case proplists:get_value(NextVar, Conf) of
                         undefined ->
-                            {error, {substitution_missing_config,
+                            {error1, {substitution_missing_config,
                                      {cuttlefish_variable:format(Var),
                                       cuttlefish_variable:format(NextVar)}}};
                         SubVal ->
@@ -475,7 +475,7 @@ value_sub(Var, Value, Conf, History) when is_list(Value) ->
                             %% its own seperate recursion so that circular
                             %% subtitutions can be detected.
                             case value_sub(NextVar, SubVal, Conf, [Var|History]) of
-                                {error, _} = Error ->
+                                {error1, _} = Error ->
                                     Error;
                                 {NewSubVal, NewConf} ->
                                     NewValue = SubFront ++ NewSubVal ++ SubBack,
