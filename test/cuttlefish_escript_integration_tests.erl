@@ -4,30 +4,36 @@
 -compile(export_all).
 
 escript_utf8_test() ->
-    cuttlefish_lager_test_backend:bounce(error),
+    cuttlefish_test_logger:bounce(error),
 
     ?assertThrow(stop_deactivate, cuttlefish_escript:main(
-              "-d ../test_fixtures/escript_utf8_test/generated.config "
-              "-s ../test_fixtures/escript_utf8_test/lib "
-              "-e ../test_fixtures/escript_utf8_test/etc "
-              "-c ../test_fixtures/escript_utf8_test/etc/utf8.conf generate"
+               "-d " ++ fixtures("escript_utf8_test/generated.config") ++
+              " -s " ++ fixtures("escript_utf8_test/lib") ++
+              " -e " ++ fixtures("escript_utf8_test/etc") ++
+              " -c " ++ fixtures("escript_utf8_test/etc/utf8.conf generate")
             )),
-    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    [Log] = cuttlefish_test_logger:get_logs(),
     ?assertMatch({match, _}, re:run(Log, "utf8.conf: Error converting value on line #1 to latin1")),
     ok.
 
 
 advanced_config_format_test() ->
-    cuttlefish_lager_test_backend:bounce(error),
+    cuttlefish_test_logger:bounce(error),
     ?assertThrow(stop_deactivate, cuttlefish_escript:main(
-                                    "-d ../test_fixtures/acformat/generated.config "
-                                    "-s ../test_fixtures/acformat/lib "
-                                    "-e ../test_fixtures/acformat/etc "
-                                    "-c ../test_fixtures/acformat/etc/acformat.conf generate"
+                                     "-d " ++ fixtures("acformat/generated.config") ++
+                                    " -s " ++ fixtures("acformat/lib") ++
+                                    " -e " ++ fixtures("acformat/etc") ++
+                                    " -c " ++ fixtures("acformat/etc/acformat.conf generate")
                                    )),
-    [Log] = cuttlefish_lager_test_backend:get_logs(),
-    ?assertMatch({match, _}, re:run(Log, "Error parsing [.][.]/test_fixtures/acformat/etc/advanced.config, incorrect format: \\[\\[a\\],\\[b\\]\\]")),
+    [Log] = cuttlefish_test_logger:get_logs(),
+    ?assert(end_with(Log, <<"acformat/etc/advanced.config, incorrect format: [[a], [b]]">>)),
     ok.
+
+end_with(Str, Suffix) ->
+    case binary:match(Str, Suffix) of
+        {_, L} when L =:= size(Suffix) -> true;
+        _ -> false
+    end.
 
 escript_prune_test_() ->
     {timeout, 20, [
@@ -38,32 +44,30 @@ escript_prune_test_() ->
 
 escript_prune(DashM, ExpectedMax) ->
     %% Empty workspace
-    case file:list_dir("../test_fixtures/escript_prune_test/generated.config") of
+    Dir = fixtures("escript_prune_test"),
+    GenDir = fixtures("escript_prune_test/generated.config"),
+    case file:list_dir(GenDir) of
         {ok, FilenamesToDelete} ->
-            [ file:delete(filename:join(["../test_fixtures/escript_prune_test/generated.config",F])) || F <- FilenamesToDelete ];
+            [ file:delete(filename:join([GenDir, F])) || F <- FilenamesToDelete ];
         _ -> ok
     end,
 
     {_, _, T} = lists:foldl(
         fun(Counter, {PrevConfigs, PrevVMArgs, Tests}) ->
-            io:format("Running iteration: ~p", [Counter]),
+            io:format(user, "Running iteration: ~p~n", [Counter]),
             %% Timer to keep from generating more than one file per second
             timer:sleep(1100),
-            cuttlefish_escript:main(
-              "-d ../test_fixtures/escript_prune_test/generated.config "
-              "-s ../test_fixtures/escript_prune_test/lib "
-              "-e ../test_fixtures/escript_prune_test/etc "
-              ++ DashM ++ " generate"
-            ),
-
+            Args = "-d " ++ GenDir ++ " -s " ++ filename:join(Dir, "lib") ++
+                   " -e " ++ filename:join(Dir, "etc") ++ " " ++ DashM ++ " generate",
+            cuttlefish_escript:main(Args),
             AppConfigs =
                 lists:sort(
                     filelib:wildcard("app.*.config",
-                                     "../test_fixtures/escript_prune_test/generated.config")),
+                                     fixtures("escript_prune_test/generated.config"))),
             VMArgs =
                 lists:sort(
                     filelib:wildcard("vm.*.args",
-                                     "../test_fixtures/escript_prune_test/generated.config")),
+                                     fixtures("escript_prune_test/generated.config"))),
 
             {AppConfigs,
              VMArgs,
@@ -87,3 +91,7 @@ compare_lists([_|PTail] = Previous, Current) when length(Previous) =:= length(Cu
     ?_assertEqual(NewPrevious, Current);
 compare_lists(_Previous, _Current) ->
     ?_assert(false).
+
+fixtures(Name) ->
+    filename:join([code:lib_dir(cuttlefish), "test", "fixtures", Name]).
+

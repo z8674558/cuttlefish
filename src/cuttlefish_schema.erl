@@ -30,9 +30,9 @@
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
-
-
 -endif.
+
+-include("cuttlefish.hrl").
 
 -type schema() :: {
               [cuttlefish_translation:translation()],
@@ -158,7 +158,7 @@ string(S, {T, M, V}) ->
         {error, {Line, erl_scan, _}, _} ->
             Error = {erl_scan, Line},
             ErrStr = cuttlefish_error:xlate(Error),
-            lager:error(lists:flatten(ErrStr)),
+            ?logger:error(lists:flatten(ErrStr)),
             {errorlist, [{error, Error}]}
     end.
 
@@ -323,14 +323,14 @@ comment_parser_test() ->
     ok.
 
 bad_file_test() ->
-    cuttlefish_lager_test_backend:bounce(),
-    {errorlist, ErrorList} = file("../test/bad_erlang.schema"),
+    cuttlefish_test_logger:bounce(),
+    {errorlist, ErrorList} = file(tp("bad_erlang.schema")),
 
-    Logs = cuttlefish_lager_test_backend:get_logs(),
+    Logs = cuttlefish_test_logger:get_logs(),
     [L1|Tail] = Logs,
     [L2|[]] = Tail,
     ?assertMatch({match, _}, re:run(L1, "Error scanning erlang near line 10")),
-    ?assertMatch({match, _}, re:run(L2, "Error parsing schema: ../test/bad_erlang.schema")),
+    ?assertMatch({match, _}, re:run(L2, "Error parsing schema: .*bad_erlang.schema")),
 
     ?assertEqual([
         {error, {erl_scan, 10}}
@@ -338,7 +338,7 @@ bad_file_test() ->
     ok.
 
 parse_invalid_erlang_test() ->
-    cuttlefish_lager_test_backend:bounce(),
+    cuttlefish_test_logger:bounce(),
     SchemaString = lists:flatten([
             "%% @doc some doc\n",
             "%% the doc continues!\n",
@@ -348,7 +348,7 @@ parse_invalid_erlang_test() ->
         ]),
     Parsed = string(SchemaString),
 
-    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    [Log] = cuttlefish_test_logger:get_logs(),
     ?assertMatch({match, _}, re:run(Log, "Schema parse error near line number 4")),
     ?assertMatch({match, _}, re:run(Log, "syntax error before: ")),
     ?assertMatch({match, _}, re:run(Log, "'}'")),
@@ -358,7 +358,7 @@ parse_invalid_erlang_test() ->
 
 
 parse_bad_datatype_test() ->
-    cuttlefish_lager_test_backend:bounce(),
+    cuttlefish_test_logger:bounce(),
 
     SchemaString = lists:flatten([
             "%% @doc some doc\n",
@@ -369,17 +369,16 @@ parse_bad_datatype_test() ->
             "]}.\n"
         ]),
     _Parsed = string(SchemaString),
-    ?assertEqual([], cuttlefish_lager_test_backend:get_logs()).
+    ?assertEqual([], cuttlefish_test_logger:get_logs()).
 
 files_test() ->
-    lager:start(),
     %% files/1 takes a list of schemas in priority order.
     %% Loads them in reverse order, as things are overridden
     {Translations, Mappings, Validators} = files(
         [
-            "../test/multi1.schema",
-            "../test/multi2.schema",
-            "../test/multi3.schema"
+            tp("multi1.schema"),
+            tp("multi2.schema"),
+            tp("multi3.schema")
         ]),
 
     ?assertEqual(6, length(Mappings)),
@@ -504,5 +503,9 @@ merge_across_multiple_schemas_test() ->
     ?assertEqual(on, cuttlefish_mapping:default(Mapping)),
     ?assertEqual(["hi"], cuttlefish_mapping:doc(Mapping)),
     ok.
+
+%% test-path
+tp(Name) ->
+    filename:join([code:lib_dir(cuttlefish), "test", Name]).
 
 -endif.

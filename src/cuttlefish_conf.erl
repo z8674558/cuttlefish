@@ -29,6 +29,8 @@
          is_variable_defined/2,
          pretty_datatype/1]).
 
+-include("cuttlefish.hrl").
+
 -type conf_pair() :: {cuttlefish_variable:variable(), any()}.
 -type conf() :: [conf_pair()].
 -export_type([conf_pair/0, conf/0]).
@@ -119,7 +121,7 @@ generate_element(MappingRecord) ->
     case Level of
         basic -> ok;
         Level ->
-            lager:warning("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
+            ?logger:warning("{level, ~p} has been deprecated. Use 'hidden' or '{hidden, true}'", [Level])
     end,
 
     case generate_element(Hidden, Level, Default, Commented) of
@@ -298,48 +300,48 @@ generate_comments_test() ->
     ?assertEqual(["## Hi!", "## Bye!", "## ", "## Acceptable values:", "##   - text"], Comments).
 
 duplicates_test() ->
-    Conf = file("../test/multi1.conf"),
+    Conf = file(tp("multi1.conf")),
     ?assertEqual(2, length(Conf)),
     ?assertEqual("3", proplists:get_value(["a","b","c"], Conf)),
     ?assertEqual("1", proplists:get_value(["a","b","d"], Conf)),
     ok.
 
 duplicates_multi_test() ->
-    Conf = files(["../test/multi1.conf", "../test/multi2.conf"]),
+    Conf = files([tp("multi1.conf"), tp("multi2.conf")]),
     ?assertEqual(2, length(Conf)),
     ?assertEqual("4", proplists:get_value(["a","b","c"], Conf)),
     ?assertEqual("1", proplists:get_value(["a","b","d"], Conf)),
     ok.
 
 files_one_nonent_test() ->
-    Conf = files(["../test/multi1.conf", "../test/nonent.conf"]),
-    ?assertEqual({errorlist,[{error, {file_open, {"../test/nonent.conf", enoent}}}]}, Conf),
+    Conf = files([tp("multi1.conf"), tp("nonent.conf")]),
+    ?assertEqual({errorlist,[{error, {file_open, {tp("nonent.conf"), enoent}}}]}, Conf),
     ok.
 
 files_incomplete_parse_test() ->
-    Conf = file("../test/incomplete.conf"),
-    ?assertEqual({errorlist, [{error, {conf_syntax, {"../test/incomplete.conf", {3, 1}}}}]}, Conf),
+    Conf = file(tp("incomplete.conf")),
+    ?assertEqual({errorlist, [{error, {conf_syntax, {tp("incomplete.conf"), {3, 1}}}}]}, Conf),
     ok.
 
 generate_element_level_advanced_test() ->
-    cuttlefish_lager_test_backend:bounce(warning),
+    cuttlefish_test_logger:bounce(warning),
     assert_no_output({level, advanced}),
-    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    [Log] = cuttlefish_test_logger:get_logs(),
     ?assertMatch({match, _}, re:run(Log, "{level, advanced} has been deprecated. Use 'hidden' or '{hidden, true}'")),
     ok.
 
 generate_element_level_intermediate_test() ->
-    cuttlefish_lager_test_backend:bounce(warning),
+    cuttlefish_test_logger:bounce(warning),
     assert_no_output({level, intermediate}),
-    [Log] = cuttlefish_lager_test_backend:get_logs(),
+    [Log] = cuttlefish_test_logger:get_logs(),
     ?assertMatch({match, _}, re:run(Log, "{level, intermediate} has been deprecated. Use 'hidden' or '{hidden, true}'")),
     ok.
 
 generate_element_hidden_test() ->
-    cuttlefish_lager_test_backend:bounce(warning),
+    cuttlefish_test_logger:bounce(warning),
     assert_no_output(hidden),
     assert_no_output({hidden, true}),
-    ?assertEqual([], cuttlefish_lager_test_backend:get_logs()),
+    ?assertEqual([], cuttlefish_test_logger:get_logs()),
     ok.
 
 assert_no_output(Setting) ->
@@ -351,5 +353,9 @@ assert_no_output(Setting) ->
                ]}),
 
     ?assertEqual([], generate_element(Mapping)).
+
+%% test-path
+tp(Name) ->
+    filename:join([code:lib_dir(cuttlefish), "test", Name]).
 
 -endif.

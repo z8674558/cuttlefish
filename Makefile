@@ -2,24 +2,37 @@ DIALYZER_APPS = kernel stdlib sasl erts ssl tools os_mon runtime_tools crypto in
 	public_key mnesia syntax_tools compiler
 COMBO_PLT = $(HOME)/.cuttlefish_combo_dialyzer_plt
 
+REBAR := rebar3
+
+.PHONY: all
+all: compile
+
 .PHONY: deps
-
-all: deps compile
-	./rebar skip_deps=true escriptize
-
 deps:
-	./rebar get-deps
+	$(REBAR) get-deps
 
+.PHONY: distclean
 docsclean:
 	@rm -rf doc/*.png doc/*.html doc/*.css doc/edoc-info
 
+.PHONY: compile
 compile: deps
-	./rebar compile
+	$(REBAR) compile
 
+## Environment variable CUTTLEFISH_ESCRIPT is shared with rebar.config
+.PHONY: escript
+escript: export CUTTLEFISH_ESCRIPT = true
+escript:
+	$(REBAR) as escript escriptize
+
+.PHONY: clean
 clean:
-	@./rebar clean
+	@rm -rf _build cuttlefish erl_crash.dump rebar3.crashdump
 
-distclean: clean
-	@rm -rf cuttlefish deps
+.PHONY: eunit
+eunit: compile
+	$(REBAR) eunit verbose=true
 
-include tools.mk
+.PHONY: dialyzer
+dialyzer:
+	$(REBAR) dialyzer
