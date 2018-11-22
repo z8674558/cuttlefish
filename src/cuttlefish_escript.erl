@@ -77,15 +77,19 @@ main(Args) ->
                     true -> SuggestedLogLevel;
                     _ -> notice
                end,
-    logger:set_handler_config(default, formatter, {logger_formatter,
-                                                      #{legacy_header => false,
-                                                        single_line => true,
-                                                        template => ?FORMAT_TEMPLATE}}),
+    logger:remove_handler(default),
+    logger:add_handler(cuttlefish, logger_std_h,
+                       #{config => #{type =>standard_error},
+                         formatter => {logger_formatter,
+                                        #{legacy_header => false,
+                                          single_line => true,
+                                          template => ?FORMAT_TEMPLATE}},
+                         filter_default => log,
+                         filters => [],
+                         level => all
+                        }),
 
-    logger:notice("set logger level to: ~p~n", [LogLevel]),
     logger:set_primary_config(level, LogLevel),
-    logger:set_handler_config(default, level, LogLevel),
-
     case Command of
         help ->
             print_help();
