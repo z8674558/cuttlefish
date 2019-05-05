@@ -205,12 +205,12 @@ prepare_translation_fun(Conf, Schema, Mapping, Xlat) ->
     case proplists:get_value(arity, erlang:fun_info(Xlat)) of
         1 ->
             {_, Mappings, _} = Schema,
-                    Mappings0 = lists:foldl(fun(M, Acc1) ->
-                        case cuttlefish_mapping:mapping(M) == Mapping of
-                            true -> [cuttlefish_mapping:variable(M) | Acc1];
-                            false -> Acc1
-                        end
-                     end, [], Mappings),
+            Mappings0 = lists:foldl(fun(M, Acc1) ->
+                case cuttlefish_mapping:mapping(M) == Mapping of
+                    true -> [cuttlefish_mapping:variable(M) | Acc1];
+                    false -> Acc1
+                end
+             end, [], Mappings),
             Conf1 = lists:filter(fun({Key, _}) ->
                 lists:any(fun(I) -> cuttlefish_variable:is_fuzzy_match(Key, I) end, Mappings0)
             end, Conf),
