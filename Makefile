@@ -26,8 +26,11 @@ escript:
 	$(REBAR) as escript escriptize
 
 .PHONY: clean
-clean:
-	@rm -rf _build cuttlefish erl_crash.dump rebar3.crashdump
+clean: distclean
+
+.PHONY: distclean
+distclean:
+	@rm -rf _build cuttlefish erl_crash.dump rebar3.crashdump rebar.lock
 
 .PHONY: eunit
 eunit: compile
