@@ -219,6 +219,18 @@ prepare_translation_fun(Conf, Schema, Mapping, Xlat) ->
             {Xlat, [Conf1]};
         2 ->
             {Xlat, [Conf, Schema]};
+        3 ->
+            {_, Mappings, _} = Schema,
+            Mappings0 = lists:foldl(fun(M, Acc1) ->
+                case cuttlefish_mapping:mapping(M) == Mapping of
+                    true -> [cuttlefish_mapping:variable(M) | Acc1];
+                    false -> Acc1
+                end
+             end, [], Mappings),
+            Conf1 = lists:filter(fun({Key, _}) ->
+                lists:any(fun(I) -> cuttlefish_variable:is_fuzzy_match(Key, I) end, Mappings0)
+            end, Conf),
+            {Xlat, [Conf1, Schema, Conf]};
         OtherArity ->
             {fun(_) ->
                      {error, {translation_arity, {Mapping, OtherArity}}}
