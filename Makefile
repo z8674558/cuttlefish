@@ -19,12 +19,6 @@ docsclean:
 compile: deps
 	$(REBAR) compile
 
-## Environment variable CUTTLEFISH_ESCRIPT is shared with rebar.config
-.PHONY: escript
-escript: export CUTTLEFISH_ESCRIPT = true
-escript:
-	$(REBAR) as escript escriptize
-
 .PHONY: clean
 clean: distclean
 

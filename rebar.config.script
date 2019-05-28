@@ -1,8 +1,0 @@
-case os:getenv("CUTTLEFISH_ESCRIPT") =:= "true" of
-    true ->
-        %% building escript, delete the post hook
-        lists:keydelete(post_hooks, 1, CONFIG);
-    false ->
-        CONFIG
-end.
-
