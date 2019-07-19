@@ -2,10 +2,13 @@ DIALYZER_APPS = kernel stdlib sasl erts ssl tools os_mon runtime_tools crypto in
 	public_key mnesia syntax_tools compiler
 COMBO_PLT = $(HOME)/.cuttlefish_combo_dialyzer_plt
 
-REBAR := rebar3
+REBAR := $(CURDIR)/rebar3
+
+REBAR_URL := https://s3.amazonaws.com/rebar3/rebar3
 
 .PHONY: all
-all: compile
+all: $(REBAR) compile
+	echo $(REBAR)
 
 .PHONY: deps
 deps:
@@ -22,7 +25,7 @@ compile: deps
 ## Environment variable CUTTLEFISH_ESCRIPT is shared with rebar.config
 .PHONY: escript
 escript: export CUTTLEFISH_ESCRIPT = true
-escript:
+escript: $(REBAR)
 	$(REBAR) as escript escriptize
 
 .PHONY: clean
@@ -39,3 +42,11 @@ eunit: compile
 .PHONY: dialyzer
 dialyzer:
 	$(REBAR) dialyzer
+
+.PHONY: $(REBAR)
+$(REBAR):
+ifneq ($(wildcard rebar3),rebar3)
+	@curl -Lo rebar3 $(REBAR_URL) || wget $(REBAR_URL)
+endif
+	@chmod a+x rebar3
+	@$(CURDIR)/rebar3 update
