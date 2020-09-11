@@ -27,7 +27,7 @@ config <- line* %{
 
 %% Lines are actual settings, comments, or horizontal whitespace,
 %% terminated by an end-of-line or end-of-file.
-line <- ((setting / comment / ws+ / placeholder) (crlf / eof)) / crlf %{
+line <- ((setting / comment / include / ws+ / placeholder) (crlf / eof)) / crlf %{
     case Node of
         [ Line, _EOL ] -> Line;
         Line -> Line
@@ -60,6 +60,11 @@ value <- (!(ws* crlf) .)+ %{
 %% A comment is any line that begins with a # sign, leading whitespace
 %% allowed.
 comment <- ws* "#" (!crlf .)* `comment`;
+
+include <- ws* "include" (ws)+ (value) ws* %{
+    [_, _, _, Value, _] = Node,
+    {include_file, Value}
+%};
 
 %% A placeholder is any line that is surrounded with {{}}
 placeholder <- ws* "{{" (!crlf !"}}" .)+ "}}" `placeholder`;
