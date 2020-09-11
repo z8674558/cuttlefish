@@ -41,7 +41,15 @@
                  [proplists:property()] |
                  {error, atom(), cuttlefish_error:errorlist()}.
 map(Schema, Config) ->
-    map_add_defaults(Schema, Config).
+    IncludeFile = lists:filter(fun({K, _}) -> K =:= include_file end, Config),
+    AllConfig = merge_include_conf(Config -- IncludeFile, IncludeFile),
+    map_add_defaults(Schema, AllConfig).
+
+merge_include_conf(Config, []) ->
+    Config;
+merge_include_conf(Config, [{_, File} | IncludeFiles]) ->
+    IncludeConfig = cuttlefish_conf:file(File),
+    merge_include_conf(IncludeConfig ++ Config, IncludeFiles).
 
 %% @doc Generates an Erlang config that only includes the settings
 %% encompassed by the passed Config, excluding defaults from the
@@ -69,6 +77,7 @@ restrict_mappings(M, {Mappings, Keys}, ConfigKeys) ->
                               [proplists:property()] |
                               {error, atom(), cuttlefish_error:errorlist()}.
 map_add_defaults({_, Mappings, _} = Schema, Config) ->
+
     %% Config at this point is just what's in the .conf file.
     %% add_defaults/2 rolls the default values in from the schema
     ?logger:debug("Adding Defaults"),
