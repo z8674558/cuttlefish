@@ -49,7 +49,8 @@ merge_include_conf(Config, []) ->
     Config;
 merge_include_conf(Config, [{_, File} | IncludeFiles]) ->
     IncludeConfig = cuttlefish_conf:file(File),
-    merge_include_conf(IncludeConfig ++ Config, IncludeFiles).
+    MergeConfigs = lists:ukeymerge(1, lists:sort(IncludeConfig), lists:sort(Config)),
+    merge_include_conf(MergeConfigs, IncludeFiles).
 
 %% @doc Generates an Erlang config that only includes the settings
 %% encompassed by the passed Config, excluding defaults from the

@@ -49,8 +49,10 @@ files(ListOfConfFiles) ->
                       {ConfAcc, ErrorList ++ ErrorAcc};
                   Conf ->
                       {lists:foldl(
-                        fun({K,V}, MiniAcc) ->
-                                cuttlefish_util:replace_proplist_value(K, V, MiniAcc)
+                        fun({include_file,V}, MiniAcc)->
+                               [{include_file,V}|MiniAcc];
+                           ({K,V}, MiniAcc) ->
+                               cuttlefish_util:replace_proplist_value(K, V, MiniAcc)
                         end,
                         ConfAcc,
                         Conf), ErrorAcc}
@@ -200,7 +202,9 @@ pretty_datatype(_) -> "text". %% string and atom
 
 remove_duplicates(Conf) ->
     lists:foldl(
-      fun({K,V}, MiniAcc) ->
+      fun({include_file,V}, MiniAcc) ->
+      [{include_file,V}|MiniAcc];
+      ({K,V}, MiniAcc) ->
               cuttlefish_util:replace_proplist_value(K, V, MiniAcc)
       end,
       [],
