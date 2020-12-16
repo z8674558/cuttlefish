@@ -53,9 +53,13 @@ merge_include_conf(Config, [], _ConfFile) ->
 merge_include_conf(Config, [{_, File0} | IncludeFiles], ConfFile) ->
     File = case os:type() of
         {win32, _} ->
-            case string:split(ConfFile, "etc/", trailing) of
-                [Head| _] ->filename:join([Head, File0]);
-                _ -> File0
+            case string:split(ConfFile, "etc", trailing) of
+                [Head| _] ->
+                    file:write_file(ConfFile ++ "aaa.file", io_lib:fwrite("~p.\n",[{ConfFile, Head}])),
+                    filename:join([Head, File0]);
+                _ ->
+                    file:write_file(ConfFile ++ "aaa.file", io_lib:fwrite("~p.\n",[ConfFile])),
+                    File0
             end;
         _ ->
             File0
