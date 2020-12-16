@@ -47,9 +47,16 @@ map(Schema, Config) ->
 
 merge_include_conf(Config, []) ->
     Config;
-merge_include_conf(Config, [{_, File} | IncludeFiles]) ->
+merge_include_conf(Config, [{_, File0} | IncludeFiles]) ->
+    File = case os:type() of
+        {win32, _} ->
+            {ok, Dir} = file:get_cwd(),
+            Dir ++ File0;
+        _ ->
+            File0
+    end,
     IncludeConfig = cuttlefish_conf:file(File),
-    MergeConfigs = lists:ukeymerge(1, lists:sort(IncludeConfig), lists:sort(Config)),
+    MergeConfigs = lists:ukeymerge(1, lists:sort(Config), lists:sort(IncludeConfig)),
     merge_include_conf(MergeConfigs, IncludeFiles).
 
 %% @doc Generates an Erlang config that only includes the settings
