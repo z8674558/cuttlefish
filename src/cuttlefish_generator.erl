@@ -51,7 +51,7 @@ merge_include_conf(Config, [{_, File0} | IncludeFiles]) ->
     File = case os:type() of
         {win32, _} ->
             {ok, Dir} = file:get_cwd(),
-            Dir ++ File0;
+            Dir ++ "/" ++ File0;
         _ ->
             File0
     end,
