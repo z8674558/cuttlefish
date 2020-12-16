@@ -393,9 +393,9 @@ engage_cuttlefish(ParsedArgs) ->
     ?logger:debug("Generating config in: ~p", [Destination]),
 
     Schema = load_schema(ParsedArgs),
-
+    ConfFile = proplists:get_value(conf_file, ParsedArgs),
     Conf = change_conf(load_conf(ParsedArgs)),
-    NewConfig = case cuttlefish_generator:map(Schema, Conf) of
+    NewConfig = case cuttlefish_generator:map(Schema, Conf, ConfFile) of
         {error, Phase, {errorlist, Errors}} ->
             ?logger:error("Error generating configuration in phase ~s", [Phase]),
             _ = [ cuttlefish_error:print(E) || E <- Errors],

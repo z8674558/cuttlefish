@@ -33,7 +33,7 @@
 -define(LSUBLEN, 2).
 -define(RSUBLEN, 1).
 
--export([map/2, find_mapping/2, add_defaults/2, minimal_map/2]).
+-export([map/2, map/3, find_mapping/2, add_defaults/2, minimal_map/2]).
 
 -include("cuttlefish.hrl").
 
@@ -41,23 +41,28 @@
                  [proplists:property()] |
                  {error, atom(), cuttlefish_error:errorlist()}.
 map(Schema, Config) ->
+    map(Schema, Config, undefined).
+
+map(Schema, Config, ConfFile) ->
     IncludeFile = lists:filter(fun({K, _}) -> K =:= include_file end, Config),
-    AllConfig = merge_include_conf(Config -- IncludeFile, IncludeFile),
+    AllConfig = merge_include_conf(Config -- IncludeFile, IncludeFile, ConfFile),
     map_add_defaults(Schema, AllConfig).
 
-merge_include_conf(Config, []) ->
+merge_include_conf(Config, [], _ConfFile) ->
     Config;
-merge_include_conf(Config, [{_, File0} | IncludeFiles]) ->
+merge_include_conf(Config, [{_, File0} | IncludeFiles], ConfFile) ->
     File = case os:type() of
         {win32, _} ->
-            {ok, Dir} = file:get_cwd(),
-            Dir ++ "/" ++ File0;
+            case string:split(ConfFile, "etc/", trailing) of
+                [Head| _] ->filename:join([Head, File0]);
+                _ -> File0
+            end;
         _ ->
             File0
     end,
     IncludeConfig = cuttlefish_conf:file(File),
     MergeConfigs = lists:ukeymerge(1, lists:sort(Config), lists:sort(IncludeConfig)),
-    merge_include_conf(MergeConfigs, IncludeFiles).
+    merge_include_conf(MergeConfigs, IncludeFiles, ConfFile).
 
 %% @doc Generates an Erlang config that only includes the settings
 %% encompassed by the passed Config, excluding defaults from the
