@@ -67,13 +67,11 @@ files(ListOfConfFiles) ->
 
 -spec file(file:name()) -> conf() | cuttlefish_error:errorlist().
 file(Filename) ->
-    case conf_parse:file(Filename) of
+    case hocon:load(Filename, #{format => proplists}) of
         {error, Reason} ->
             %% Reason is an atom via file:open
             {errorlist, [{error, {file_open, {Filename, Reason}}}]};
-        {_Conf, Remainder, {{line, L}, {column, C}}} when is_binary(Remainder) ->
-            {errorlist, [{error, {conf_syntax, {Filename, {L, C}}}}]};
-        Conf ->
+        {ok, Conf} ->
             %% Conf is a proplist, check if any of the values are cuttlefish_errors
             {_, Values} = lists:unzip(Conf),
             case cuttlefish_error:filter(Values) of
