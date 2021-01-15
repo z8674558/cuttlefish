@@ -70,7 +70,7 @@ parse(DurationString, Unit) ->
 -spec parse(string()) -> integer() | cuttlefish_error:error().
 parse(InputDurationString) ->
     DurationString = string:to_lower(InputDurationString),
-    case cuttlefish_duration_parse:parse(DurationString) of
+    case hocon:duration(DurationString) of
         Float when is_float(Float) ->
             cuttlefish_util:ceiling(Float);
         Int when is_integer(Int) ->
