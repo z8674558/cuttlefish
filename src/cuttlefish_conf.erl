@@ -67,7 +67,7 @@ files(ListOfConfFiles) ->
 
 -spec file(file:name()) -> conf() | cuttlefish_error:errorlist().
 file(Filename) ->
-    case hocon:load(Filename, #{format => proplists}) of
+    case hocon:load(Filename, #{delete_null => true, format => proplists}) of
         {error, Reason} ->
             %% Reason is an atom via file:open
             {errorlist, [{error, {file_open, {Filename, Reason}}}]};
