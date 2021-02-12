@@ -45,11 +45,71 @@ map(Schema, Config) ->
 
 map(Schema, Config, ConfFile) ->
     IncludeFile = lists:filter(fun({K, _}) -> K =:= include_file end, Config),
-    AllConfig = merge_include_conf(Config -- IncludeFile, IncludeFile, ConfFile),
+    IncludedConfig = merge_include_conf(Config -- IncludeFile, IncludeFile, ConfFile),
+    AllConfig = merge_env_conf(IncludedConfig, Schema),
     map_add_defaults(Schema, AllConfig).
 
+-spec (merge_env_conf(cuttlefish_conf:conf(), cuttlefish_schema:schema()) -> cuttlefish_conf:conf()).
+merge_env_conf(Config, Schema) ->
+    Envs = match_env(getenv(), Schema),
+    lists:ukeymerge(1, Envs, Config).
+
+-spec (getenv() -> cuttlefish_conf:conf()).
+getenv() ->
+    lists:map(fun (E) -> [Key, Value] = string:split(E, "=", leading), {Key, Value} end, os:getenv()).
+
+match_env(AllEnvs, {_, Mappings, _}) ->
+    Prefix = os:getenv("CUTTLEFISH_ENV_OVERRIDE_PREFIX", undefined),
+    Envs = lists:filtermap(fun (KV) -> check_prefix(KV, Prefix) end, AllEnvs),
+    Default = lists:ukeysort(1, match_default_env(Envs, Mappings)),
+    Override = lists:ukeysort(1, match_override_env(Envs, Mappings)),
+    lists:ukeymerge(1, Override, Default).
+
+match_default_env(Envs, Mappings) ->
+    lists:filtermap(fun (KV) -> do_match_default_env(KV, Mappings) end, Envs).
+
+do_match_default_env({Key, Value}, Mappings) ->
+    FormattedKey = string:lowercase(string:replace(Key, "__", ".", all)),
+    T = cuttlefish_variable:tokenize(FormattedKey),
+    case lists:any(fun (M) -> cuttlefish_variable:is_fuzzy_match(T, cuttlefish_mapping:variable(M)) end, Mappings) of
+        true ->
+            {true, {T, Value}};
+        false ->
+            false
+    end.
+
+check_prefix(_, undefined) ->
+    false;
+check_prefix({Key, Value}, Prefix) ->
+    case string:prefix(Key, Prefix) of
+        nomatch ->
+            false;
+        Remainder ->
+            {true, {Remainder, Value}}
+    end.
+
+match_override_env(Envs, Mappings) ->
+    lists:foldl(fun (KV, A) -> lists:append(do_match_override_env(KV, Mappings), A) end, [], Envs).
+
+do_match_override_env({Key, Value}, Mappings) ->
+    do_match_override_env({Key, Value}, Mappings, []).
+do_match_override_env(_, [], Acc) ->
+    Acc;
+do_match_override_env({Key, Value}=KV, [M|More], Acc) ->
+    case {Key =:= cuttlefish_mapping:override_env(M), is_fuzzy_variable(cuttlefish_mapping:variable(M))} of
+        {true, true} ->
+            error({no_env_override_support_for_fuzzy_mappings, M});
+        {true, false} ->
+            do_match_override_env(KV, More, [{cuttlefish_mapping:variable(M), Value}|Acc]);
+        {false, _} ->
+            do_match_override_env(KV, More, Acc)
+    end.
+
+is_fuzzy_variable(Variable) ->
+    lists:any(fun ([$$|_]) -> true; (_) -> false end, Variable).
+
 merge_include_conf(Config, [], _ConfFile) ->
-    Config;
+    lists:ukeysort(1, Config);
 merge_include_conf(Config, [{_, File0} | IncludeFiles], ConfFile) ->
     File = case os:type() of
         {win32, _} ->
@@ -782,7 +842,7 @@ map_test() ->
     ?assertEqual(false, NewSASL),
 
     NewHTTP = proplists:get_value(http, proplists:get_value(riak_core, NewConfig)),
-    ?assertEqual([{"10.0.0.1", 80}, {"127.0.0.1", 8098}], NewHTTP),
+    ?assertEqual([{"10.0.0.1", 80}, {"127.0.0.1", 8098}], lists:ukeysort(1, NewHTTP)),
 
     NewPB = proplists:get_value(pb, proplists:get_value(riak_api, NewConfig)),
     ?assertEqual([], NewPB),
@@ -1256,6 +1316,68 @@ value_sub_paren_test() ->
     {NewConf, Errors} = value_sub(Conf),
     ?assertEqual([], Errors),
     ?assertEqual("C)/C)", proplists:get_value(["a"], NewConf)),
+    ok.
+
+env_override_test() ->
+    Conf = [
+        {["some", "key"], "foo"},
+        {["other", "key"], "bar"},
+        {["fuzzy", "key", "1"], "baz"}
+    ],
+
+    Mappings = [
+        cuttlefish_mapping:parse({mapping, "some.key", "somekey", [
+            {datatype, string}
+        ]}),
+        cuttlefish_mapping:parse({mapping, "other.key", "otherkey", [
+            {datatype, string},
+            {override_env, "OVERRIDE_IT"}
+        ]}),
+        cuttlefish_mapping:parse({mapping, "fuzzy.key.$idx", "fuzzykey", [
+            {datatype, string}
+        ]})
+    ],
+    Translations = [
+        cuttlefish_translation:parse({translation, "fuzzykey", fun([{_K, V}]) -> V end})
+    ],
+    os:putenv("EMQX_SOME__KEY", "foo_override"),
+    os:putenv("EMQX_OTHER__KEY", "ignored"),
+    os:putenv("EMQX_OVERRIDE_IT", "bar_override"),
+    os:putenv("EMQX_FUZZY__KEY__1", "baz_override"),
+
+    os:putenv("CUTTLEFISH_ENV_OVERRIDE_PREFIX", "EMQX_"),
+
+    NewConfig = map({Translations, Mappings, []}, Conf),
+
+    os:unsetenv("EMQX_SOME__KEY"),
+    os:unsetenv("EMQX_OTHER__KEY"),
+    os:unsetenv("OVERRIDE_IT"),
+    os:unsetenv("EMQX_FUZZY__KEY__1"),
+    os:unsetenv("CUTTLEFISH_ENV_OVERRIDE_PREFIX"),
+
+    ?assertEqual("foo_override", proplists:get_value(somekey, NewConfig)),
+    ?assertEqual("bar_override", proplists:get_value(otherkey, NewConfig)),
+    ?assertEqual("baz_override", proplists:get_value(fuzzykey, NewConfig)),
+    ok.
+
+env_fuzzy_override_error_test() ->
+    Conf = [
+        {["fuzzy", "key", "1"], "baz"}
+    ],
+
+    Mappings = [
+        cuttlefish_mapping:parse({mapping, "fuzzy.key.$idx", "fuzzykey", [
+            {datatype, string},
+            {override_env, "OVERRIDE"}
+        ]})
+    ],
+    os:putenv("EMQX_OVERRIDE", "foo"),
+    os:putenv("CUTTLEFISH_ENV_OVERRIDE_PREFIX", "EMQX_"),
+
+    ?assertError({no_env_override_support_for_fuzzy_mappings, _}, map({[], Mappings, []}, Conf)),
+
+    os:unsetenv("EMQX_OVERRIDE"),
+    os:unsetenv("CUTTLEFISH_ENV_OVERRIDE_PREFIX"),
     ok.
 
 %% test-path

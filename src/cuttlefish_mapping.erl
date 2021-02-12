@@ -39,7 +39,8 @@
         validators = [] :: [string()],
         is_merge = false :: boolean(),
         see = [] :: [cuttlefish_variable:variable()],
-        hidden = false :: boolean()
+        hidden = false :: boolean(),
+        override_env = undefined :: string() | undefined
     }).
 
 -type mapping() :: #mapping{}.
@@ -63,6 +64,7 @@
     see/1,
     include_default/1,
     new_conf_value/1,
+    override_env/1,
     replace/2,
     validators/1,
     validators/2,
@@ -105,7 +107,8 @@ parse({mapping, Variable, Mapping, Proplist}) ->
                 include_default = proplists:get_value(include_default, Proplist),
                 new_conf_value = proplists:get_value(new_conf_value, Proplist),
                 validators = proplists:get_value(validators, Proplist, []),
-                hidden = proplists:get_value(hidden, Proplist, false)
+                hidden = proplists:get_value(hidden, Proplist, false),
+                override_env = proplists:get_value(override_env, Proplist)
             }
     end;
 parse(X) ->
@@ -150,7 +153,8 @@ merge(NewMappingSource, OldMapping) ->
         new_conf_value = choose(include_default, NewMappingSource, MergeMapping, OldMapping),
         validators = choose(validators, NewMappingSource, MergeMapping, OldMapping),
         see = choose(see, NewMappingSource, MergeMapping, OldMapping),
-        hidden = choose(hidden, NewMappingSource, MergeMapping, OldMapping)
+        hidden = choose(hidden, NewMappingSource, MergeMapping, OldMapping),
+        override_env = choose(override_env, NewMappingSource, MergeMapping, OldMapping)
     }.
 
 choose(Field, {_, _, _, PreParseMergeProps}, MergeMapping, OldMapping) ->
@@ -201,6 +205,9 @@ level(M) -> M#mapping.level.
 
 -spec hidden(mapping()) -> boolean().
 hidden(M) -> M#mapping.hidden.
+
+-spec override_env(mapping()) -> string() | undefined.
+override_env(M) -> M#mapping.override_env.
 
 -spec doc(mapping()) -> [string()].
 doc(M) -> M#mapping.doc.
